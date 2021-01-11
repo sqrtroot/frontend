@@ -9,7 +9,7 @@ import {
   property,
   TemplateResult,
 } from "lit-element";
-import { isComponentLoaded } from "../../../common/config/is_component_loaded";
+import { canShowPage } from "../../../common/config/can_show_page";
 import "../../../components/ha-card";
 import "../../../components/ha-icon-next";
 import { CloudStatus, CloudStatusLoggedIn } from "../../../data/cloud";
@@ -18,7 +18,7 @@ import { HomeAssistant } from "../../../types";
 
 @customElement("ha-config-navigation")
 class HaConfigNavigation extends LitElement {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property() public showAdvanced!: boolean;
 
@@ -27,10 +27,7 @@ class HaConfigNavigation extends LitElement {
   protected render(): TemplateResult {
     return html`
       ${this.pages.map((page) =>
-        (!page.component ||
-          page.core ||
-          isComponentLoaded(this.hass, page.component)) &&
-        (!page.advancedOnly || this.showAdvanced)
+        canShowPage(this.hass, page)
           ? html`
               <a
                 href=${`/config/${page.component}`}
@@ -38,9 +35,13 @@ class HaConfigNavigation extends LitElement {
                 tabindex="-1"
               >
                 <paper-icon-item>
-                  <ha-icon .icon=${page.icon} slot="item-icon"></ha-icon>
+                  <ha-svg-icon
+                    .path=${page.iconPath}
+                    slot="item-icon"
+                  ></ha-svg-icon>
                   <paper-item-body two-line>
-                    ${this.hass.localize(
+                    ${page.name ||
+                    this.hass.localize(
                       page.translationKey ||
                         `ui.panel.config.${page.component}.caption`
                     )}
@@ -88,7 +89,7 @@ class HaConfigNavigation extends LitElement {
         display: block;
         outline: 0;
       }
-      ha-icon,
+      ha-svg-icon,
       ha-icon-next {
         color: var(--secondary-text-color);
       }

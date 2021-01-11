@@ -51,7 +51,7 @@ DO NOT DELETE ANY TEXT from this template! Otherwise, your issue may be closed w
 <!--
   Provide details about the versions you are using, which helps us reproducing
   and finding the issue quicker. Version information is found in the
-  Home Assistant frontend: Developer tools -> Info.
+  Home Assistant frontend: Configuration -> Info.
 
   Browser version and operating system is important! Please try to replicate
   your issue in a different browser and be sure to include your findings.
@@ -74,12 +74,12 @@ DO NOT DELETE ANY TEXT from this template! Otherwise, your issue may be closed w
 
 ```
 
-## Problem-relevant configuration
+## Problem-relevant frontend configuration
 
 <!--
-  An example configuration that caused the problem for you. Fill this out even
-  if it seems unimportant to you. Please be sure to remove personal information
-  like passwords, private URLs and other credentials.
+  An example configuration that caused the problem for you, e.g. the YAML configuration 
+  of the used cards. Fill this out even if it seems unimportant to you. Please be sure 
+  to remove personal information like passwords, private URLs and other credentials.
 -->
 
 ```yaml
@@ -89,7 +89,7 @@ DO NOT DELETE ANY TEXT from this template! Otherwise, your issue may be closed w
 ## Javascript errors shown in your browser console/inspector
 
 <!--
-  If you come across any javascript or other error logs, e.g., in your browser
+  If you come across any Javascript or other error logs, e.g. in your browser
   console/inspector please provide them.
 -->
 

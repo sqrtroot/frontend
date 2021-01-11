@@ -9,11 +9,12 @@ import {
 } from "lit-element";
 import { HomeAssistant } from "../../../types";
 import { ConfigEntryExtended } from "./ha-config-integrations";
-import { domainToName } from "../../../data/integration";
+import { domainToName, IntegrationManifest } from "../../../data/integration";
 import {
   ConfigEntry,
   updateConfigEntry,
   deleteConfigEntry,
+  reloadConfigEntry,
 } from "../../../data/config_entries";
 import { EntityRegistryEntry } from "../../../data/entity_registry";
 import { DeviceRegistryEntry } from "../../../data/device_registry";
@@ -27,6 +28,10 @@ import {
 import { haStyle } from "../../../resources/styles";
 import "../../../components/ha-icon-next";
 import { fireEvent } from "../../../common/dom/fire_event";
+import { mdiDotsVertical, mdiOpenInNew } from "@mdi/js";
+import type { RequestSelectedDetail } from "@material/mwc-list/mwc-list-item";
+import { shouldHandleRequestSelectedEvent } from "../../../common/mwc/handle-request-selected-event";
+import { brandsUrl } from "../../../util/brands-url";
 
 export interface ConfigEntryUpdatedEvent {
   entry: ConfigEntry;
@@ -44,19 +49,44 @@ declare global {
   }
 }
 
+const integrationsWithPanel = {
+  mqtt: {
+    buttonLocalizeKey: "ui.panel.config.mqtt.button",
+    path: "/config/mqtt",
+  },
+  zha: {
+    buttonLocalizeKey: "ui.panel.config.zha.button",
+    path: "/config/zha/dashboard",
+  },
+  ozw: {
+    buttonLocalizeKey: "ui.panel.config.ozw.button",
+    path: "/config/ozw/dashboard",
+  },
+  zwave: {
+    buttonLocalizeKey: "ui.panel.config.zwave.button",
+    path: "/config/zwave",
+  },
+};
+
 @customElement("ha-integration-card")
 export class HaIntegrationCard extends LitElement {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property() public domain!: string;
 
   @property() public items!: ConfigEntryExtended[];
+
+  @property() public manifest!: IntegrationManifest;
 
   @property() public entityRegistryEntries!: EntityRegistryEntry[];
 
   @property() public deviceRegistryEntries!: DeviceRegistryEntry[];
 
   @property() public selectedConfigEntryId?: string;
+
+  firstUpdated(changedProps) {
+    super.firstUpdated(changedProps);
+  }
 
   protected render(): TemplateResult {
     if (this.items.length === 1) {
@@ -75,17 +105,17 @@ export class HaIntegrationCard extends LitElement {
 
   private _renderGroupedIntegration(): TemplateResult {
     return html`
-      <ha-card class="group">
+      <ha-card outlined class="group">
         <div class="group-header">
           <img
-            src="https://brands.home-assistant.io/${this.domain}/icon.png"
+            src=${brandsUrl(this.domain, "icon")}
             referrerpolicy="no-referrer"
             @error=${this._onImageError}
             @load=${this._onImageLoad}
           />
-          <h1>
+          <h2>
             ${domainToName(this.hass.localize, this.domain)}
-          </h1>
+          </h2>
         </div>
         <paper-listbox>
           ${this.items.map(
@@ -108,9 +138,12 @@ export class HaIntegrationCard extends LitElement {
 
   private _renderSingleEntry(item: ConfigEntryExtended): TemplateResult {
     const devices = this._getDevices(item);
+    const services = this._getServices(item);
     const entities = this._getEntities(item);
+
     return html`
       <ha-card
+        outlined
         class="single integration"
         .configEntry=${item}
         .id=${item.entry_id}
@@ -125,19 +158,19 @@ export class HaIntegrationCard extends LitElement {
         <div class="card-content">
           <div class="image">
             <img
-              src="https://brands.home-assistant.io/${item.domain}/logo.png"
+              src=${brandsUrl(item.domain, "logo")}
               referrerpolicy="no-referrer"
               @error=${this._onImageError}
               @load=${this._onImageLoad}
             />
           </div>
-          <h1>
-            ${item.localized_domain_name}
-          </h1>
           <h2>
-            ${item.localized_domain_name === item.title ? "" : item.title}
+            ${item.localized_domain_name}
           </h2>
-          ${devices.length || entities.length
+          <h3>
+            ${item.localized_domain_name === item.title ? "" : item.title}
+          </h3>
+          ${devices.length || services.length || entities.length
             ? html`
                 <div>
                   ${devices.length
@@ -149,10 +182,22 @@ export class HaIntegrationCard extends LitElement {
                             "count",
                             devices.length
                           )}</a
+                        >${services.length ? "," : ""}
+                      `
+                    : ""}
+                  ${services.length
+                    ? html`
+                        <a
+                          href=${`/config/devices/dashboard?historyBack=1&config_entry=${item.entry_id}`}
+                          >${this.hass.localize(
+                            "ui.panel.config.integrations.config_entry.services",
+                            "count",
+                            services.length
+                          )}</a
                         >
                       `
                     : ""}
-                  ${devices.length && entities.length
+                  ${(devices.length || services.length) && entities.length
                     ? this.hass.localize("ui.common.and")
                     : ""}
                   ${entities.length
@@ -178,42 +223,74 @@ export class HaIntegrationCard extends LitElement {
                 "ui.panel.config.integrations.config_entry.rename"
               )}</mwc-button
             >
-            ${item.supports_options
+            ${item.domain in integrationsWithPanel
+              ? html`<a
+                  href=${`${
+                    integrationsWithPanel[item.domain].path
+                  }?config_entry=${item.entry_id}`}
+                  ><mwc-button>
+                    ${this.hass.localize(
+                      integrationsWithPanel[item.domain].buttonLocalizeKey
+                    )}
+                  </mwc-button></a
+                >`
+              : item.supports_options
               ? html`
-                  <mwc-button @click=${this._showOptions}
-                    >${this.hass.localize(
+                  <mwc-button @click=${this._showOptions}>
+                    ${this.hass.localize(
                       "ui.panel.config.integrations.config_entry.options"
-                    )}</mwc-button
-                  >
+                    )}
+                  </mwc-button>
                 `
               : ""}
           </div>
-          <paper-menu-button
-            horizontal-align="right"
-            vertical-align="top"
-            vertical-offset="40"
-            close-on-activate
-          >
-            <ha-icon-button
-              icon="hass:dots-vertical"
-              slot="dropdown-trigger"
-              aria-label=${this.hass!.localize(
-                "ui.panel.lovelace.editor.edit_card.options"
+          <ha-button-menu corner="BOTTOM_START">
+            <mwc-icon-button
+              .title=${this.hass.localize("ui.common.menu")}
+              .label=${this.hass.localize("ui.common.overflow_menu")}
+              slot="trigger"
+            >
+              <ha-svg-icon .path=${mdiDotsVertical}></ha-svg-icon>
+            </mwc-icon-button>
+            <mwc-list-item @request-selected="${this._handleSystemOptions}">
+              ${this.hass.localize(
+                "ui.panel.config.integrations.config_entry.system_options"
               )}
-            ></ha-icon-button>
-            <paper-listbox slot="dropdown-content">
-              <paper-item @tap=${this._showSystemOptions}>
-                ${this.hass.localize(
-                  "ui.panel.config.integrations.config_entry.system_options"
-                )}</paper-item
-              >
-              <paper-item class="warning" @tap=${this._removeIntegration}>
-                ${this.hass.localize(
-                  "ui.panel.config.integrations.config_entry.delete"
-                )}</paper-item
-              >
-            </paper-listbox>
-          </paper-menu-button>
+            </mwc-list-item>
+            ${!this.manifest
+              ? ""
+              : html`
+                  <a
+                    href=${this.manifest.documentation}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <mwc-list-item hasMeta>
+                      ${this.hass.localize(
+                        "ui.panel.config.integrations.config_entry.documentation"
+                      )}<ha-svg-icon
+                        slot="meta"
+                        .path=${mdiOpenInNew}
+                      ></ha-svg-icon>
+                    </mwc-list-item>
+                  </a>
+                `}
+            ${item.state === "loaded" && item.supports_unload
+              ? html`<mwc-list-item @request-selected="${this._handleReload}">
+                  ${this.hass.localize(
+                    "ui.panel.config.integrations.config_entry.reload"
+                  )}
+                </mwc-list-item>`
+              : ""}
+            <mwc-list-item
+              class="warning"
+              @request-selected="${this._handleDelete}"
+            >
+              ${this.hass.localize(
+                "ui.panel.config.integrations.config_entry.delete"
+              )}
+            </mwc-list-item>
+          </ha-button-menu>
         </div>
       </ha-card>
     `;
@@ -241,8 +318,21 @@ export class HaIntegrationCard extends LitElement {
     if (!this.deviceRegistryEntries) {
       return [];
     }
-    return this.deviceRegistryEntries.filter((device) =>
-      device.config_entries.includes(configEntry.entry_id)
+    return this.deviceRegistryEntries.filter(
+      (device) =>
+        device.config_entries.includes(configEntry.entry_id) &&
+        device.entry_type !== "service"
+    );
+  }
+
+  private _getServices(configEntry: ConfigEntry): DeviceRegistryEntry[] {
+    if (!this.deviceRegistryEntries) {
+      return [];
+    }
+    return this.deviceRegistryEntries.filter(
+      (device) =>
+        device.config_entries.includes(configEntry.entry_id) &&
+        device.entry_type === "service"
     );
   }
 
@@ -258,32 +348,41 @@ export class HaIntegrationCard extends LitElement {
     showOptionsFlowDialog(this, ev.target.closest("ha-card").configEntry);
   }
 
-  private _showSystemOptions(ev) {
-    showConfigEntrySystemOptionsDialog(this, {
-      entry: ev.target.closest("ha-card").configEntry,
-    });
-  }
-
-  private async _editEntryName(ev) {
-    const configEntry = ev.target.closest("ha-card").configEntry;
-    const newName = await showPromptDialog(this, {
-      title: this.hass.localize("ui.panel.config.integrations.rename_dialog"),
-      defaultValue: configEntry.title,
-      inputLabel: this.hass.localize(
-        "ui.panel.config.integrations.rename_input_label"
-      ),
-    });
-    if (newName === null) {
+  private _handleReload(ev: CustomEvent<RequestSelectedDetail>): void {
+    if (!shouldHandleRequestSelectedEvent(ev)) {
       return;
     }
-    const newEntry = await updateConfigEntry(this.hass, configEntry.entry_id, {
-      title: newName,
-    });
-    fireEvent(this, "entry-updated", { entry: newEntry });
+    this._reloadIntegration(
+      ((ev.target as HTMLElement).closest("ha-card") as any).configEntry
+    );
   }
 
-  private async _removeIntegration(ev) {
-    const entryId = ev.target.closest("ha-card").configEntry.entry_id;
+  private _handleDelete(ev: CustomEvent<RequestSelectedDetail>): void {
+    if (!shouldHandleRequestSelectedEvent(ev)) {
+      return;
+    }
+    this._removeIntegration(
+      ((ev.target as HTMLElement).closest("ha-card") as any).configEntry
+    );
+  }
+
+  private _handleSystemOptions(ev: CustomEvent<RequestSelectedDetail>): void {
+    if (!shouldHandleRequestSelectedEvent(ev)) {
+      return;
+    }
+    this._showSystemOptions(
+      ((ev.target as HTMLElement).closest("ha-card") as any).configEntry
+    );
+  }
+
+  private _showSystemOptions(configEntry: ConfigEntry) {
+    showConfigEntrySystemOptionsDialog(this, {
+      entry: configEntry,
+    });
+  }
+
+  private async _removeIntegration(configEntry: ConfigEntry) {
+    const entryId = configEntry.entry_id;
 
     const confirmed = await showConfirmationDialog(this, {
       text: this.hass.localize(
@@ -305,6 +404,39 @@ export class HaIntegrationCard extends LitElement {
         });
       }
     });
+  }
+
+  private async _reloadIntegration(configEntry: ConfigEntry) {
+    const entryId = configEntry.entry_id;
+
+    reloadConfigEntry(this.hass, entryId).then((result) => {
+      const locale_key = result.require_restart
+        ? "reload_restart_confirm"
+        : "reload_confirm";
+      showAlertDialog(this, {
+        text: this.hass.localize(
+          `ui.panel.config.integrations.config_entry.${locale_key}`
+        ),
+      });
+    });
+  }
+
+  private async _editEntryName(ev) {
+    const configEntry = ev.target.closest("ha-card").configEntry;
+    const newName = await showPromptDialog(this, {
+      title: this.hass.localize("ui.panel.config.integrations.rename_dialog"),
+      defaultValue: configEntry.title,
+      inputLabel: this.hass.localize(
+        "ui.panel.config.integrations.rename_input_label"
+      ),
+    });
+    if (newName === null) {
+      return;
+    }
+    const newEntry = await updateConfigEntry(this.hass, configEntry.entry_id, {
+      title: newName,
+    });
+    fireEvent(this, "entry-updated", { entry: newEntry });
   }
 
   static get styles(): CSSResult[] {
@@ -344,7 +476,7 @@ export class HaIntegrationCard extends LitElement {
           align-items: center;
           height: 40px;
           padding: 16px 16px 8px 16px;
-          vertical-align: middle;
+          justify-content: center;
         }
         .group-header h1 {
           margin: 0;
@@ -364,7 +496,6 @@ export class HaIntegrationCard extends LitElement {
           max-height: 100%;
           max-width: 90%;
         }
-
         .none-found {
           margin: auto;
           text-align: center;
@@ -376,12 +507,19 @@ export class HaIntegrationCard extends LitElement {
           margin-bottom: 0;
         }
         h2 {
-          margin-top: 0;
           min-height: 24px;
         }
-        paper-menu-button {
+        h3 {
+          word-wrap: break-word;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 3;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        ha-button-menu {
           color: var(--secondary-text-color);
-          padding: 0;
+          --mdc-menu-min-width: 200px;
         }
         @media (min-width: 563px) {
           paper-listbox {
@@ -392,6 +530,9 @@ export class HaIntegrationCard extends LitElement {
         paper-item {
           cursor: pointer;
           min-height: 35px;
+        }
+        mwc-list-item ha-svg-icon {
+          color: var(--secondary-text-color);
         }
         .back-btn {
           position: absolute;

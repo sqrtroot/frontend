@@ -21,7 +21,7 @@ const equal = (a: SceneEntity[], b: SceneEntity[]): boolean => {
 
 @customElement("ha-config-scene")
 class HaConfigScene extends HassRouterPage {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property() public narrow!: boolean;
 
@@ -53,8 +53,7 @@ class HaConfigScene extends HassRouterPage {
 
   private _getScenes = memoizeOne((states: HassEntities): SceneEntity[] => {
     return Object.values(states).filter(
-      (entity) =>
-        computeStateDomain(entity) === "scene" && !entity.attributes.hidden
+      (entity) => computeStateDomain(entity) === "scene"
     ) as SceneEntity[];
   });
 

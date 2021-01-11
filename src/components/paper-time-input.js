@@ -97,6 +97,7 @@ export class PaperTimeInput extends PolymerElement {
         .time-input-wrap {
           @apply --layout-horizontal;
           @apply --layout-no-wrap;
+          justify-content: var(--paper-time-input-justify-content, normal);
         }
 
         [hidden] {
@@ -322,9 +323,9 @@ export class PaperTimeInput extends PolymerElement {
    * @return {boolean}
    */
   validate() {
-    var valid = true;
+    let valid = true;
     // Validate hour & min fields
-    if (!this.$.hour.validate() | !this.$.min.validate()) {
+    if (!this.$.hour.validate() || !this.$.min.validate()) {
       valid = false;
     }
     // Validate second field

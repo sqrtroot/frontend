@@ -3,6 +3,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -21,7 +22,7 @@ const INTERVAL_FORMAT = ["relative", "total"];
 
 @customElement("hui-timestamp-display")
 class HuiTimestampDisplay extends LitElement {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
   @property() public ts?: Date;
 
@@ -32,7 +33,7 @@ class HuiTimestampDisplay extends LitElement {
     | "datetime"
     | "time";
 
-  @property() private _relative?: string;
+  @internalProperty() private _relative?: string;
 
   private _connected?: boolean;
 
@@ -56,7 +57,9 @@ class HuiTimestampDisplay extends LitElement {
     }
 
     if (isNaN(this.ts.getTime())) {
-      return html` Invalid date `;
+      return html`${this.hass.localize(
+        "ui.panel.lovelace.components.timestamp-display.invalid"
+      )}`;
     }
 
     const format = this._format;
@@ -67,7 +70,9 @@ class HuiTimestampDisplay extends LitElement {
     if (format in FORMATS) {
       return html` ${FORMATS[format](this.ts, this.hass.language)} `;
     }
-    return html` Invalid format `;
+    return html`${this.hass.localize(
+      "ui.panel.lovelace.components.timestamp-display.invalid_format"
+    )}`;
   }
 
   protected updated(changedProperties: PropertyValues): void {

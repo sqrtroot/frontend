@@ -4,6 +4,7 @@ import {
   CSSResult,
   customElement,
   html,
+  internalProperty,
   LitElement,
   property,
   PropertyValues,
@@ -18,9 +19,9 @@ import { HomeAssistant } from "../../../types";
 import { actionHandler } from "../common/directives/action-handler-directive";
 import { findEntities } from "../common/find-entites";
 import { hasConfigOrEntityChanged } from "../common/has-changed";
+import { createEntityNotFoundWarning } from "../components/hui-warning";
 import { LovelaceCard, LovelaceCardEditor } from "../types";
 import { PlantAttributeTarget, PlantStatusCardConfig } from "./types";
-import { createEntityNotFoundWarning } from "../components/hui-warning";
 
 const SENSORS = {
   moisture: "hass:water",
@@ -33,9 +34,7 @@ const SENSORS = {
 @customElement("hui-plant-status-card")
 class HuiPlantStatusCard extends LitElement implements LovelaceCard {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
-    await import(
-      /* webpackChunkName: "hui-plant-status-card-editor" */ "../editor/config-elements/hui-plant-status-card-editor"
-    );
+    await import("../editor/config-elements/hui-plant-status-card-editor");
     return document.createElement("hui-plant-status-card-editor");
   }
 
@@ -57,9 +56,9 @@ class HuiPlantStatusCard extends LitElement implements LovelaceCard {
     return { type: "plant-status", entity: foundEntities[0] || "" };
   }
 
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: PlantStatusCardConfig;
+  @internalProperty() private _config?: PlantStatusCardConfig;
 
   public getCardSize(): number {
     return 3;
@@ -67,7 +66,7 @@ class HuiPlantStatusCard extends LitElement implements LovelaceCard {
 
   public setConfig(config: PlantStatusCardConfig): void {
     if (!config.entity || config.entity.split(".")[0] !== "plant") {
-      throw new Error("Specify an entity from within the plant domain.");
+      throw new Error("Specify an entity from within the plant domain");
     }
 
     this._config = config;
@@ -162,6 +161,10 @@ class HuiPlantStatusCard extends LitElement implements LovelaceCard {
 
   static get styles(): CSSResult {
     return css`
+      ha-card {
+        height: 100%;
+        box-sizing: border-box;
+      }
       .banner {
         display: flex;
         align-items: flex-end;
@@ -229,7 +232,7 @@ class HuiPlantStatusCard extends LitElement implements LovelaceCard {
       }
 
       .problem {
-        color: var(--google-red-500);
+        color: var(--error-color);
         font-weight: bold;
       }
 

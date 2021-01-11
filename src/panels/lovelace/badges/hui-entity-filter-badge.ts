@@ -5,12 +5,17 @@ import { createBadgeElement } from "../create-element/create-badge-element";
 import { EntityFilterEntityConfig } from "../entity-rows/types";
 import { LovelaceBadge } from "../types";
 import { EntityFilterBadgeConfig } from "./types";
-import { UpdatingElement, property, PropertyValues } from "lit-element";
+import {
+  UpdatingElement,
+  property,
+  internalProperty,
+  PropertyValues,
+} from "lit-element";
 
 class EntityFilterBadge extends UpdatingElement implements LovelaceBadge {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
-  @property() private _config?: EntityFilterBadgeConfig;
+  @internalProperty() private _config?: EntityFilterBadgeConfig;
 
   private _elements?: LovelaceBadge[];
 
@@ -19,8 +24,8 @@ class EntityFilterBadge extends UpdatingElement implements LovelaceBadge {
   private _oldEntities?: EntityFilterEntityConfig[];
 
   public setConfig(config: EntityFilterBadgeConfig): void {
-    if (!config.entities || !Array.isArray(config.entities)) {
-      throw new Error("entities must be specified.");
+    if (!config.entities.length || !Array.isArray(config.entities)) {
+      throw new Error("Entities must be specified");
     }
 
     if (
@@ -32,7 +37,7 @@ class EntityFilterBadge extends UpdatingElement implements LovelaceBadge {
           Array.isArray(entity.state_filter)
       )
     ) {
-      throw new Error("Incorrect filter config.");
+      throw new Error("Incorrect filter config");
     }
 
     while (this.lastChild) {

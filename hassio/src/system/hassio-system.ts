@@ -1,4 +1,3 @@
-import "@polymer/paper-menu-button/paper-menu-button";
 import {
   css,
   CSSResult,
@@ -8,35 +7,28 @@ import {
   property,
   TemplateResult,
 } from "lit-element";
-import {
-  HassioHassOSInfo,
-  HassioHostInfo,
-} from "../../../src/data/hassio/host";
-import { HassioSupervisorInfo } from "../../../src/data/hassio/supervisor";
+import { Supervisor } from "../../../src/data/supervisor/supervisor";
 import "../../../src/layouts/hass-tabs-subpage";
 import { haStyle } from "../../../src/resources/styles";
 import { HomeAssistant, Route } from "../../../src/types";
-import { supervisorTabs } from "../hassio-panel";
+import { supervisorTabs } from "../hassio-tabs";
 import { hassioStyle } from "../resources/hassio-style";
 import "./hassio-host-info";
 import "./hassio-supervisor-info";
 import "./hassio-supervisor-log";
+import "./hassio-system-metrics";
 
 @customElement("hassio-system")
 class HassioSystem extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
 
+  @property({ attribute: false }) public supervisor!: Supervisor;
+
   @property({ type: Boolean }) public narrow!: boolean;
 
   @property({ attribute: false }) public route!: Route;
 
-  @property() public supervisorInfo!: HassioSupervisorInfo;
-
-  @property() public hostInfo!: HassioHostInfo;
-
-  @property() public hassOsInfo!: HassioHassOSInfo;
-
-  public render(): TemplateResult | void {
+  protected render(): TemplateResult | void {
     return html`
       <hass-tabs-subpage
         .hass=${this.hass}
@@ -48,19 +40,20 @@ class HassioSystem extends LitElement {
       >
         <span slot="header">System</span>
         <div class="content">
-          <h1>Information</h1>
           <div class="card-group">
             <hassio-supervisor-info
               .hass=${this.hass}
-              .supervisorInfo=${this.supervisorInfo}
+              .supervisor=${this.supervisor}
             ></hassio-supervisor-info>
             <hassio-host-info
               .hass=${this.hass}
-              .hostInfo=${this.hostInfo}
-              .hassOsInfo=${this.hassOsInfo}
+              .supervisor=${this.supervisor}
             ></hassio-host-info>
+            <hassio-system-metrics
+              .hass=${this.hass}
+              .supervisor=${this.supervisor}
+            ></hassio-system-metrics>
           </div>
-          <h1>System log</h1>
           <hassio-supervisor-log .hass=${this.hass}></hassio-supervisor-log>
         </div>
       </hass-tabs-subpage>

@@ -4,6 +4,7 @@ import {
   CSSResult,
   customElement,
   html,
+  internalProperty,
   LitElement,
   property,
   PropertyValues,
@@ -13,7 +14,10 @@ import { classMap } from "lit-html/directives/class-map";
 import { applyThemesOnElement } from "../../../common/dom/apply_themes_on_element";
 import "../../../components/ha-card";
 import "../../../components/ha-markdown";
-import { subscribeRenderTemplate } from "../../../data/ws-templates";
+import {
+  RenderTemplateResult,
+  subscribeRenderTemplate,
+} from "../../../data/ws-templates";
 import type { HomeAssistant } from "../../../types";
 import type { LovelaceCard, LovelaceCardEditor } from "../types";
 import type { MarkdownCardConfig } from "./types";
@@ -21,9 +25,7 @@ import type { MarkdownCardConfig } from "./types";
 @customElement("hui-markdown-card")
 export class HuiMarkdownCard extends LitElement implements LovelaceCard {
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
-    await import(
-      /* webpackChunkName: "hui-markdown-card-editor" */ "../editor/config-elements/hui-markdown-card-editor"
-    );
+    await import("../editor/config-elements/hui-markdown-card-editor");
     return document.createElement("hui-markdown-card-editor");
   }
 
@@ -35,13 +37,13 @@ export class HuiMarkdownCard extends LitElement implements LovelaceCard {
     };
   }
 
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: MarkdownCardConfig;
+  @internalProperty() private _config?: MarkdownCardConfig;
 
-  @property() private _content = "";
+  @internalProperty() private _templateResult?: RenderTemplateResult;
 
-  @property() private _unsubRenderTemplate?: Promise<UnsubscribeFunc>;
+  @internalProperty() private _unsubRenderTemplate?: Promise<UnsubscribeFunc>;
 
   public getCardSize(): number {
     return this._config === undefined
@@ -54,7 +56,7 @@ export class HuiMarkdownCard extends LitElement implements LovelaceCard {
 
   public setConfig(config: MarkdownCardConfig): void {
     if (!config.content) {
-      throw new Error("Invalid Configuration: Content Required");
+      throw new Error("Content required");
     }
 
     if (this._config?.content !== config.content) {
@@ -84,7 +86,7 @@ export class HuiMarkdownCard extends LitElement implements LovelaceCard {
           class=${classMap({
             "no-header": !this._config.title,
           })}
-          .content="${this._content}"
+          .content="${this._templateResult?.result}"
         ></ha-markdown>
       </ha-card>
     `;
@@ -126,7 +128,7 @@ export class HuiMarkdownCard extends LitElement implements LovelaceCard {
       this._unsubRenderTemplate = subscribeRenderTemplate(
         this.hass.connection,
         (result) => {
-          this._content = result;
+          this._templateResult = result;
         },
         {
           template: this._config.content,
@@ -138,7 +140,10 @@ export class HuiMarkdownCard extends LitElement implements LovelaceCard {
         }
       );
     } catch (_err) {
-      this._content = this._config!.content;
+      this._templateResult = {
+        result: this._config!.content,
+        listeners: { all: false, domains: [], entities: [], time: false },
+      };
       this._unsubRenderTemplate = undefined;
     }
   }
@@ -163,6 +168,9 @@ export class HuiMarkdownCard extends LitElement implements LovelaceCard {
 
   static get styles(): CSSResult {
     return css`
+      ha-card {
+        height: 100%;
+      }
       ha-markdown {
         padding: 0 16px 16px;
       }

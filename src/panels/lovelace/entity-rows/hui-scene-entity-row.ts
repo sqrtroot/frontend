@@ -6,6 +6,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -20,13 +21,13 @@ import { ActionRowConfig, LovelaceRow } from "./types";
 
 @customElement("hui-scene-entity-row")
 class HuiSceneEntityRow extends LitElement implements LovelaceRow {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
-  @property() private _config?: ActionRowConfig;
+  @internalProperty() private _config?: ActionRowConfig;
 
   public setConfig(config: ActionRowConfig): void {
     if (!config) {
-      throw new Error("Configuration error");
+      throw new Error("Invalid configuration");
     }
     this._config = config;
   }
@@ -68,6 +69,9 @@ class HuiSceneEntityRow extends LitElement implements LovelaceRow {
     return css`
       mwc-button {
         margin-right: -0.57em;
+      }
+      :host {
+        cursor: pointer;
       }
     `;
   }

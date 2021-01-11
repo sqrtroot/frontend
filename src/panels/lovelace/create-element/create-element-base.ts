@@ -2,9 +2,12 @@ import { fireEvent } from "../../../common/dom/fire_event";
 import {
   LovelaceBadgeConfig,
   LovelaceCardConfig,
+  LovelaceViewConfig,
+  LovelaceViewElement,
 } from "../../../data/lovelace";
 import { CUSTOM_TYPE_PREFIX } from "../../../data/lovelace_custom_cards";
 import type { HuiErrorCard } from "../cards/hui-error-card";
+import type { ErrorCardConfig } from "../cards/types";
 import { LovelaceElement, LovelaceElementConfig } from "../elements/types";
 import { LovelaceRow, LovelaceRowConfig } from "../entity-rows/types";
 import { LovelaceHeaderFooterConfig } from "../header-footer/types";
@@ -13,8 +16,9 @@ import {
   LovelaceCard,
   LovelaceCardConstructor,
   LovelaceHeaderFooter,
+  LovelaceHeaderFooterConstructor,
+  LovelaceRowConstructor,
 } from "../types";
-import type { ErrorCardConfig } from "../cards/types";
 
 const TIMEOUT = 2000;
 
@@ -37,11 +41,16 @@ interface CreateElementConfigTypes {
   row: {
     config: LovelaceRowConfig;
     element: LovelaceRow;
-    constructor: unknown;
+    constructor: LovelaceRowConstructor;
   };
   "header-footer": {
     config: LovelaceHeaderFooterConfig;
     element: LovelaceHeaderFooter;
+    constructor: LovelaceHeaderFooterConstructor;
+  };
+  view: {
+    config: LovelaceViewConfig;
+    element: LovelaceViewElement;
     constructor: unknown;
   };
 }
@@ -73,15 +82,8 @@ const _createElement = <T extends keyof CreateElementConfigTypes>(
   const element = document.createElement(
     tag
   ) as CreateElementConfigTypes[T]["element"];
-  try {
-    // @ts-ignore
-    element.setConfig(config);
-  } catch (err) {
-    // eslint-disable-next-line
-    console.error(tag, err);
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    return _createErrorElement(err.message, config);
-  }
+  // @ts-ignore
+  element.setConfig(config);
   return element;
 };
 
@@ -102,6 +104,10 @@ const _customCreate = <T extends keyof CreateElementConfigTypes>(
     `Custom element doesn't exist: ${tag}.`,
     config
   );
+  // Custom elements are required to have a - in the name
+  if (!tag.includes("-")) {
+    return element;
+  }
   element.style.display = "None";
   const timer = window.setTimeout(() => {
     element.style.display = "";
@@ -153,8 +159,36 @@ export const createLovelaceElement = <T extends keyof CreateElementConfigTypes>(
   // Default type if no type given. If given, entity types will not work.
   defaultType?: string
 ): CreateElementConfigTypes[T]["element"] | HuiErrorCard => {
+  try {
+    return tryCreateLovelaceElement(
+      tagSuffix,
+      config,
+      alwaysLoadTypes,
+      lazyLoadTypes,
+      domainTypes,
+      defaultType
+    );
+  } catch (err) {
+    // eslint-disable-next-line
+    console.error(tagSuffix, config.type, err);
+    return _createErrorElement(err.message, config);
+  }
+};
+
+export const tryCreateLovelaceElement = <
+  T extends keyof CreateElementConfigTypes
+>(
+  tagSuffix: T,
+  config: CreateElementConfigTypes[T]["config"],
+  alwaysLoadTypes?: Set<string>,
+  lazyLoadTypes?: { [domain: string]: () => Promise<unknown> },
+  // Allow looking at "entity" in config and mapping that to a type
+  domainTypes?: { _domain_not_found: string; [domain: string]: string },
+  // Default type if no type given. If given, entity types will not work.
+  defaultType?: string
+): CreateElementConfigTypes[T]["element"] | HuiErrorCard => {
   if (!config || typeof config !== "object") {
-    return _createErrorElement("Config is not an object", config);
+    throw new Error("Config is not an object");
   }
 
   if (
@@ -163,7 +197,7 @@ export const createLovelaceElement = <T extends keyof CreateElementConfigTypes>(
     // If domain types is given, we can derive a type from "entity"
     (!domainTypes || !("entity" in config))
   ) {
-    return _createErrorElement("No card type configured.", config);
+    throw new Error("No card type configured");
   }
 
   const customTag = config.type ? _getCustomTag(config.type) : undefined;
@@ -185,7 +219,7 @@ export const createLovelaceElement = <T extends keyof CreateElementConfigTypes>(
   }
 
   if (type === undefined) {
-    return _createErrorElement(`No type specified`, config);
+    throw new Error("No type specified");
   }
 
   const tag = `hui-${type}-${tagSuffix}`;
@@ -199,7 +233,7 @@ export const createLovelaceElement = <T extends keyof CreateElementConfigTypes>(
     return _createElement(tag, config);
   }
 
-  return _createErrorElement(`Unknown type encountered: ${type}.`, config);
+  throw new Error(`Unknown type encountered: ${type}`);
 };
 
 export const getLovelaceElementClass = async <
@@ -214,20 +248,26 @@ export const getLovelaceElementClass = async <
 
   if (customTag) {
     const customCls = customElements.get(customTag);
-    return (
-      customCls ||
-      new Promise((resolve, reject) => {
-        // We will give custom components up to TIMEOUT seconds to get defined
-        setTimeout(
-          () => reject(new Error(`Custom element not found: ${customTag}`)),
-          TIMEOUT
-        );
+    if (customCls) {
+      return customCls;
+    }
 
-        customElements
-          .whenDefined(customTag)
-          .then(() => resolve(customElements.get(customTag)));
-      })
-    );
+    // Custom elements are required to have a - in the name
+    if (!customTag.includes("-")) {
+      throw new Error(`Custom element not found: ${customTag}`);
+    }
+
+    return new Promise((resolve, reject) => {
+      // We will give custom components up to TIMEOUT seconds to get defined
+      setTimeout(
+        () => reject(new Error(`Custom element not found: ${customTag}`)),
+        TIMEOUT
+      );
+
+      customElements
+        .whenDefined(customTag)
+        .then(() => resolve(customElements.get(customTag)));
+    });
   }
 
   const tag = `hui-${type}-${tagSuffix}`;

@@ -8,18 +8,21 @@ import {
 import {
   customElement,
   html,
+  internalProperty,
   property,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
 import { HASSDomEvent } from "../common/dom/fire_event";
+import { extractSearchParamsObject } from "../common/url/search-params";
 import { subscribeOne } from "../common/util/subscribe-one";
-import { hassUrl } from "../data/auth";
+import { AuthUrlSearchParams, hassUrl } from "../data/auth";
+import { fetchDiscoveryInformation } from "../data/discovery";
 import {
   fetchOnboardingOverview,
   OnboardingResponses,
   OnboardingStep,
-  ValidOnboardingStep,
+  onboardIntegrationStep,
 } from "../data/onboarding";
 import { subscribeUser } from "../data/ws-user";
 import { litLocalizeLiteMixin } from "../mixins/lit-localize-lite-mixin";
@@ -29,30 +32,42 @@ import { registerServiceWorker } from "../util/register-service-worker";
 import "./onboarding-create-user";
 import "./onboarding-loading";
 
-interface OnboardingEvent<T extends ValidOnboardingStep> {
-  type: T;
-  result: OnboardingResponses[T];
-}
+type OnboardingEvent =
+  | {
+      type: "user";
+      result: OnboardingResponses["user"];
+    }
+  | {
+      type: "core_config";
+      result: OnboardingResponses["core_config"];
+    }
+  | {
+      type: "integration";
+    };
 
 declare global {
   interface HASSDomEvents {
-    "onboarding-step": OnboardingEvent<ValidOnboardingStep>;
+    "onboarding-step": OnboardingEvent;
   }
 
   interface GlobalEventHandlersEventMap {
-    "onboarding-step": HASSDomEvent<OnboardingEvent<ValidOnboardingStep>>;
+    "onboarding-step": HASSDomEvent<OnboardingEvent>;
   }
 }
 
 @customElement("ha-onboarding")
 class HaOnboarding extends litLocalizeLiteMixin(HassElement) {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
   public translationFragment = "page-onboarding";
 
-  @property() private _loading = false;
+  @internalProperty() private _loading = false;
 
-  @property() private _steps?: OnboardingStep[];
+  @internalProperty() private _restoring = false;
+
+  @internalProperty() private _supervisor?: boolean;
+
+  @internalProperty() private _steps?: OnboardingStep[];
 
   protected render(): TemplateResult {
     const step = this._curStep()!;
@@ -62,10 +77,21 @@ class HaOnboarding extends litLocalizeLiteMixin(HassElement) {
     }
     if (step.step === "user") {
       return html`
-        <onboarding-create-user
-          .localize=${this.localize}
-          .language=${this.language}
-        ></onboarding-create-user>
+        ${!this._restoring
+          ? html`<onboarding-create-user
+              .localize=${this.localize}
+              .language=${this.language}
+            >
+            </onboarding-create-user>`
+          : ""}
+        ${this._supervisor
+          ? html`<onboarding-restore-snapshot
+              .localize=${this.localize}
+              .restoring=${this._restoring}
+              @restoring=${this._restoringSnapshot}
+            >
+            </onboarding-restore-snapshot>`
+          : ""}
       `;
     }
     if (step.step === "core_config") {
@@ -90,12 +116,9 @@ class HaOnboarding extends litLocalizeLiteMixin(HassElement) {
   protected firstUpdated(changedProps: PropertyValues) {
     super.firstUpdated(changedProps);
     this._fetchOnboardingSteps();
-    import(
-      /* webpackChunkName: "onboarding-integrations" */ "./onboarding-integrations"
-    );
-    import(
-      /* webpackChunkName: "onboarding-core-config" */ "./onboarding-core-config"
-    );
+    this._fetchDiscoveryInformation();
+    import("./onboarding-integrations");
+    import("./onboarding-core-config");
     registerServiceWorker(this, false);
     this.addEventListener("onboarding-step", (ev) => this._handleStepDone(ev));
   }
@@ -115,6 +138,30 @@ class HaOnboarding extends litLocalizeLiteMixin(HassElement) {
 
   private _curStep() {
     return this._steps ? this._steps.find((stp) => !stp.done) : undefined;
+  }
+
+  private _restoringSnapshot() {
+    this._restoring = true;
+  }
+
+  private async _fetchDiscoveryInformation(): Promise<void> {
+    try {
+      const response = await fetchDiscoveryInformation();
+      this._supervisor = [
+        "Home Assistant OS",
+        "Home Assistant Supervised",
+      ].includes(response.installation_type);
+      if (this._supervisor) {
+        // Only load if we have supervisor
+        import("./onboarding-restore-snapshot");
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(
+        "Something went wrong loading onboarding-restore-snapshot",
+        err
+      );
+    }
   }
 
   private async _fetchOnboardingSteps() {
@@ -150,9 +197,7 @@ class HaOnboarding extends litLocalizeLiteMixin(HassElement) {
     }
   }
 
-  private async _handleStepDone(
-    ev: HASSDomEvent<OnboardingEvent<ValidOnboardingStep>>
-  ) {
+  private async _handleStepDone(ev: HASSDomEvent<OnboardingEvent>) {
     const stepResult = ev.detail;
     this._steps = this._steps!.map((step) =>
       step.step === stepResult.type ? { ...step, done: true } : step
@@ -176,8 +221,40 @@ class HaOnboarding extends litLocalizeLiteMixin(HassElement) {
     } else if (stepResult.type === "core_config") {
       // We do nothing
     } else if (stepResult.type === "integration") {
-      const result = stepResult.result as OnboardingResponses["integration"];
       this._loading = true;
+
+      // Determine if oauth redirect has been provided
+      const externalAuthParams = extractSearchParamsObject() as AuthUrlSearchParams;
+      const authParams =
+        externalAuthParams.client_id && externalAuthParams.redirect_uri
+          ? externalAuthParams
+          : {
+              client_id: genClientId(),
+              redirect_uri: `${location.protocol}//${location.host}/?auth_callback=1`,
+              state: btoa(
+                JSON.stringify({
+                  hassUrl: `${location.protocol}//${location.host}`,
+                  clientId: genClientId(),
+                })
+              ),
+            };
+
+      let result: OnboardingResponses["integration"];
+
+      try {
+        result = await onboardIntegrationStep(this.hass!, {
+          client_id: authParams.client_id!,
+          redirect_uri: authParams.redirect_uri!,
+        });
+      } catch (err) {
+        this.hass!.connection.close();
+        await this.hass!.auth.revoke();
+
+        alert(`Unable to finish onboarding: ${err.message}`);
+
+        document.location.assign("/?");
+        return;
+      }
 
       // If we don't close the connection manually, the connection will be
       // closed when we navigate away from the page. Firefox allows JS to
@@ -191,17 +268,17 @@ class HaOnboarding extends litLocalizeLiteMixin(HassElement) {
       // Revoke current auth token.
       await this.hass!.auth.revoke();
 
-      const state = btoa(
-        JSON.stringify({
-          hassUrl: `${location.protocol}//${location.host}`,
-          clientId: genClientId(),
-        })
-      );
-      document.location.assign(
-        `/?auth_callback=1&code=${encodeURIComponent(
-          result.auth_code
-        )}&state=${state}`
-      );
+      // Build up the url to redirect to
+      let redirectUrl = authParams.redirect_uri!;
+      redirectUrl +=
+        (redirectUrl.includes("?") ? "&" : "?") +
+        `code=${encodeURIComponent(result.auth_code)}`;
+
+      if (authParams.state) {
+        redirectUrl += `&state=${encodeURIComponent(authParams.state)}`;
+      }
+
+      document.location.assign(redirectUrl);
     }
   }
 

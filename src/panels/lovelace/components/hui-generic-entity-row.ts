@@ -26,7 +26,7 @@ import { hasAction } from "../common/has-action";
 import { createEntityNotFoundWarning } from "./hui-warning";
 
 class HuiGenericEntityRow extends LitElement {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
   @property() public config?: EntitiesCardEntityConfig;
 
@@ -97,6 +97,13 @@ class HuiGenericEntityRow extends LitElement {
                         .datetime=${stateObj.last_changed}
                       ></ha-relative-time>
                     `
+                  : this.config.secondary_info === "last-updated"
+                  ? html`
+                      <ha-relative-time
+                        .hass=${this.hass}
+                        .datetime=${stateObj.last_updated}
+                      ></ha-relative-time>
+                    `
                   : this.config.secondary_info === "last-triggered"
                   ? stateObj.attributes.last_triggered
                     ? html`
@@ -157,7 +164,8 @@ class HuiGenericEntityRow extends LitElement {
       }
       .info {
         margin-left: 16px;
-        flex: 1 0 60px;
+        margin-right: 8px;
+        flex: 1 0 30%;
       }
       .info,
       .info > * {
@@ -174,7 +182,6 @@ class HuiGenericEntityRow extends LitElement {
       }
       .secondary,
       ha-relative-time {
-        display: block;
         color: var(--secondary-text-color);
       }
       state-badge {

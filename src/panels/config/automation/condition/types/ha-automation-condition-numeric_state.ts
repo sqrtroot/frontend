@@ -1,15 +1,14 @@
 import "@polymer/paper-input/paper-input";
+import "@polymer/paper-input/paper-textarea";
 import { customElement, html, LitElement, property } from "lit-element";
-import { fireEvent } from "../../../../../common/dom/fire_event";
 import "../../../../../components/entity/ha-entity-picker";
-import "../../../../../components/ha-textarea";
 import { NumericStateCondition } from "../../../../../data/automation";
 import { HomeAssistant } from "../../../../../types";
 import { handleChangeEvent } from "../ha-automation-condition-row";
 
 @customElement("ha-automation-condition-numeric_state")
 export default class HaNumericStateCondition extends LitElement {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property() public condition!: NumericStateCondition;
 
@@ -20,15 +19,33 @@ export default class HaNumericStateCondition extends LitElement {
   }
 
   public render() {
-    const { value_template, entity_id, below, above } = this.condition;
+    const {
+      value_template,
+      entity_id,
+      attribute,
+      below,
+      above,
+    } = this.condition;
 
     return html`
       <ha-entity-picker
-        .value="${entity_id}"
-        @value-changed="${this._entityPicked}"
+        .value=${entity_id}
+        .name=${"entity_id"}
+        @value-changed=${this._valueChanged}
         .hass=${this.hass}
         allow-custom-entity
       ></ha-entity-picker>
+      <ha-entity-attribute-picker
+        .hass=${this.hass}
+        .entityId=${entity_id}
+        .value=${attribute}
+        .name=${"attribute"}
+        .label=${this.hass.localize(
+          "ui.panel.config.automation.editor.triggers.type.state.attribute"
+        )}
+        @value-changed=${this._valueChanged}
+        allow-custom-value
+      ></ha-entity-attribute-picker>
       <paper-input
         .label=${this.hass.localize(
           "ui.panel.config.automation.editor.conditions.type.numeric_state.above"
@@ -45,7 +62,7 @@ export default class HaNumericStateCondition extends LitElement {
         .value=${below}
         @value-changed=${this._valueChanged}
       ></paper-input>
-      <ha-textarea
+      <paper-textarea
         .label=${this.hass.localize(
           "ui.panel.config.automation.editor.conditions.type.numeric_state.value_template"
         )}
@@ -53,19 +70,12 @@ export default class HaNumericStateCondition extends LitElement {
         .value=${value_template}
         @value-changed=${this._valueChanged}
         dir="ltr"
-      ></ha-textarea>
+      ></paper-textarea>
     `;
   }
 
   private _valueChanged(ev: CustomEvent): void {
     handleChangeEvent(this, ev);
-  }
-
-  private _entityPicked(ev) {
-    ev.stopPropagation();
-    fireEvent(this, "value-changed", {
-      value: { ...this.condition, entity_id: ev.detail.value },
-    });
   }
 }
 

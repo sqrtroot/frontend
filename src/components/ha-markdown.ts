@@ -54,8 +54,12 @@ class HaMarkdown extends LitElement {
       }
       ha-markdown-element code,
       pre {
-        background-color: var(--markdown-code-background-color, #f6f8fa);
+        background-color: var(--markdown-code-background-color, none);
         border-radius: 3px;
+      }
+      ha-markdown-element svg {
+        background-color: var(--markdown-svg-background-color, none);
+        color: var(--markdown-svg-color, none);
       }
       ha-markdown-element code {
         font-size: 85%;
@@ -68,10 +72,11 @@ class HaMarkdown extends LitElement {
         padding: 16px;
         overflow: auto;
         line-height: 1.45;
+        font-family: var(--code-font-family, monospace);
       }
       ha-markdown-element h2 {
-        font-size: 1.5em !important;
-        font-weight: bold !important;
+        font-size: 1.5em;
+        font-weight: bold;
       }
     `;
   }

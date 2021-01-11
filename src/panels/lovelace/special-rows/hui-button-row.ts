@@ -4,10 +4,12 @@ import {
   CSSResult,
   customElement,
   html,
+  internalProperty,
   LitElement,
-  property,
   TemplateResult,
 } from "lit-element";
+import { DOMAINS_TOGGLE } from "../../../common/const";
+import { computeDomain } from "../../../common/entity/compute_domain";
 import "../../../components/ha-icon";
 import { ActionHandlerEvent } from "../../../data/lovelace";
 import { HomeAssistant } from "../../../types";
@@ -20,22 +22,27 @@ import { ButtonRowConfig, LovelaceRow } from "../entity-rows/types";
 export class HuiButtonRow extends LitElement implements LovelaceRow {
   public hass?: HomeAssistant;
 
-  @property() private _config?: ButtonRowConfig;
+  @internalProperty() private _config?: ButtonRowConfig;
 
   public setConfig(config: ButtonRowConfig): void {
     if (!config) {
-      throw new Error("Error in card configuration.");
+      throw new Error("Invalid configuration");
     }
 
     if (!config.name) {
-      throw new Error("Error in card configuration. No name specified.");
+      throw new Error("No name specified");
     }
 
-    if (!config.tap_action) {
-      throw new Error("Error in card configuration. No action specified.");
-    }
-
-    this._config = config;
+    this._config = {
+      tap_action: {
+        action:
+          config.entity && DOMAINS_TOGGLE.has(computeDomain(config.entity))
+            ? "toggle"
+            : "more-info",
+      },
+      hold_action: { action: "more-info" },
+      ...config,
+    };
   }
 
   protected render(): TemplateResult {

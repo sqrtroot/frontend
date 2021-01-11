@@ -5,6 +5,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -21,20 +22,21 @@ import { actionHandler } from "../common/directives/action-handler-directive";
 import { hasAction } from "../common/has-action";
 import { ActionHandlerEvent } from "../../../data/lovelace";
 import { handleAction } from "../common/handle-action";
+import { UNAVAILABLE_STATES } from "../../../data/entity";
 
 interface SensorEntityConfig extends EntitiesCardEntityConfig {
-  format?: "relative" | "date" | "time" | "datetime";
+  format?: "relative" | "total" | "date" | "time" | "datetime";
 }
 
 @customElement("hui-sensor-entity-row")
 class HuiSensorEntityRow extends LitElement implements LovelaceRow {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: SensorEntityConfig;
+  @internalProperty() private _config?: SensorEntityConfig;
 
   public setConfig(config: SensorEntityConfig): void {
     if (!config) {
-      throw new Error("Configuration error");
+      throw new Error("Invalid configuration");
     }
     this._config = config;
   }
@@ -70,8 +72,7 @@ class HuiSensorEntityRow extends LitElement implements LovelaceRow {
         >
           ${stateObj.attributes.device_class ===
             SENSOR_DEVICE_CLASS_TIMESTAMP &&
-          stateObj.state !== "unavailable" &&
-          stateObj.state !== "unknown"
+          !UNAVAILABLE_STATES.includes(stateObj.state)
             ? html`
                 <hui-timestamp-display
                   .hass=${this.hass}

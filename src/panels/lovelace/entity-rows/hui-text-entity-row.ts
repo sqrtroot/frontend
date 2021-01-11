@@ -5,6 +5,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -25,13 +26,13 @@ import { EntitiesCardEntityConfig } from "../cards/types";
 
 @customElement("hui-text-entity-row")
 class HuiTextEntityRow extends LitElement implements LovelaceRow {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: EntitiesCardEntityConfig;
+  @internalProperty() private _config?: EntitiesCardEntityConfig;
 
   public setConfig(config: EntitiesCardEntityConfig): void {
     if (!config) {
-      throw new Error("Configuration error");
+      throw new Error("Invalid configuration");
     }
     this._config = config;
   }

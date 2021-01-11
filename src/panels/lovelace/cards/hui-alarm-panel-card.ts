@@ -5,6 +5,7 @@ import {
   CSSResult,
   customElement,
   html,
+  internalProperty,
   LitElement,
   property,
   PropertyValues,
@@ -41,9 +42,7 @@ const BUTTONS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "clear"];
 @customElement("hui-alarm-panel-card")
 class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
   public static async getConfigElement() {
-    await import(
-      /* webpackChunkName: "hui-alarm-panel-card-editor" */ "../editor/config-elements/hui-alarm-panel-card-editor"
-    );
+    await import("../editor/config-elements/hui-alarm-panel-card-editor");
     return document.createElement("hui-alarm-panel-card-editor");
   }
 
@@ -69,22 +68,22 @@ class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
     };
   }
 
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: AlarmPanelCardConfig;
+  @internalProperty() private _config?: AlarmPanelCardConfig;
 
   @query("#alarmCode") private _input?: PaperInputElement;
 
   public async getCardSize(): Promise<number> {
     if (!this._config || !this.hass) {
-      return 5;
+      return 9;
     }
 
     const stateObj = this.hass.states[this._config.entity];
 
     return !stateObj || stateObj.attributes.code_format !== FORMAT_NUMBER
-      ? 3
-      : 8;
+      ? 4
+      : 9;
   }
 
   public setConfig(config: AlarmPanelCardConfig): void {
@@ -93,7 +92,7 @@ class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
       !config.entity ||
       config.entity.split(".")[0] !== "alarm_control_panel"
     ) {
-      throw new Error("Invalid card configuration");
+      throw new Error("Invalid configuration");
     }
 
     const defaults = {
@@ -190,7 +189,7 @@ class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
           : html`
               <paper-input
                 id="alarmCode"
-                label="Alarm Code"
+                .label=${this.hass.localize("ui.card.alarm_control_panel.code")}
                 type="password"
               ></paper-input>
             `}
@@ -269,6 +268,8 @@ class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
       ha-card {
         padding-bottom: 16px;
         position: relative;
+        height: 100%;
+        box-sizing: border-box;
         --alarm-color-disarmed: var(--label-badge-green);
         --alarm-color-pending: var(--label-badge-yellow);
         --alarm-color-triggered: var(--label-badge-red);
@@ -280,11 +281,11 @@ class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
       ha-label-badge {
         --ha-label-badge-color: var(--alarm-state-color);
         --label-badge-text-color: var(--alarm-state-color);
-        --label-badge-background-color: var(--paper-card-background-color);
+        --label-badge-background-color: var(--card-background-color);
         color: var(--alarm-state-color);
         position: absolute;
         right: 12px;
-        top: 12px;
+        top: 8px;
         cursor: pointer;
       }
 
@@ -350,8 +351,7 @@ class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
       }
 
       .actions {
-        margin: 0 8px;
-        padding-top: 20px;
+        margin: 0;
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
@@ -362,7 +362,7 @@ class HuiAlarmPanelCard extends LitElement implements LovelaceCard {
       }
 
       mwc-button#disarm {
-        color: var(--google-red-500);
+        color: var(--error-color);
       }
     `;
   }

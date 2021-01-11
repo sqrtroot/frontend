@@ -1,9 +1,5 @@
 import { customElement, property } from "lit-element";
-import { HassioHassOSInfo, HassioHostInfo } from "../../src/data/hassio/host";
-import {
-  HassioHomeAssistantInfo,
-  HassioSupervisorInfo,
-} from "../../src/data/hassio/supervisor";
+import { Supervisor } from "../../src/data/supervisor/supervisor";
 import {
   HassRouterPage,
   RouterOptions,
@@ -20,17 +16,11 @@ import "./system/hassio-system";
 class HassioPanelRouter extends HassRouterPage {
   @property({ attribute: false }) public hass!: HomeAssistant;
 
+  @property({ attribute: false }) public supervisor!: Supervisor;
+
   @property({ attribute: false }) public route!: Route;
 
   @property({ type: Boolean }) public narrow!: boolean;
-
-  @property({ attribute: false }) public supervisorInfo: HassioSupervisorInfo;
-
-  @property({ attribute: false }) public hostInfo: HassioHostInfo;
-
-  @property({ attribute: false }) public hassInfo: HassioHomeAssistantInfo;
-
-  @property({ attribute: false }) public hassOsInfo!: HassioHassOSInfo;
 
   protected routerOptions: RouterOptions = {
     routes: {
@@ -51,12 +41,9 @@ class HassioPanelRouter extends HassRouterPage {
 
   protected updatePageEl(el) {
     el.hass = this.hass;
+    el.supervisor = this.supervisor;
     el.route = this.route;
     el.narrow = this.narrow;
-    el.supervisorInfo = this.supervisorInfo;
-    el.hostInfo = this.hostInfo;
-    el.hassInfo = this.hassInfo;
-    el.hassOsInfo = this.hassOsInfo;
   }
 }
 

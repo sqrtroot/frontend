@@ -1,6 +1,5 @@
 import "@polymer/paper-item/paper-icon-item";
 import "@polymer/paper-item/paper-item-body";
-import "@polymer/paper-spinner/paper-spinner-lite";
 import Fuse from "fuse.js";
 import {
   css,
@@ -9,6 +8,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   TemplateResult,
 } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
@@ -20,8 +20,10 @@ import { LocalizeFunc } from "../../common/translations/localize";
 import "../../components/ha-icon-next";
 import { domainToName } from "../../data/integration";
 import { HomeAssistant } from "../../types";
+import { documentationUrl } from "../../util/documentation-url";
 import { FlowConfig } from "./show-dialog-data-entry-flow";
 import { configFlowContentStyles } from "./styles";
+import { brandsUrl } from "../../util/brands-url";
 
 interface HandlerObj {
   name: string;
@@ -32,15 +34,17 @@ interface HandlerObj {
 class StepFlowPickHandler extends LitElement {
   public flowConfig!: FlowConfig;
 
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property() public handlers!: string[];
 
   @property() public showAdvanced?: boolean;
 
-  @property() private filter?: string;
+  @internalProperty() private filter?: string;
 
   private _width?: number;
+
+  private _height?: number;
 
   private _getHandlers = memoizeOne(
     (h: string[], filter?: string, _localize?: LocalizeFunc) => {
@@ -80,9 +84,13 @@ class StepFlowPickHandler extends LitElement {
         autofocus
         .filter=${this.filter}
         @value-changed=${this._filterChanged}
+        .label=${this.hass.localize("ui.panel.config.integrations.search")}
       ></search-input>
       <div
-        style=${styleMap({ width: `${this._width}px` })}
+        style=${styleMap({
+          width: `${this._width}px`,
+          height: `${this._height}px`,
+        })}
         class=${classMap({ advanced: Boolean(this.showAdvanced) })}
       >
         ${handlers.map(
@@ -95,7 +103,7 @@ class StepFlowPickHandler extends LitElement {
                 <img
                   slot="item-icon"
                   loading="lazy"
-                  src="https://brands.home-assistant.io/_/${handler.slug}/icon.png"
+                  src=${brandsUrl(handler.slug, "icon", true)}
                   referrerpolicy="no-referrer"
                 />
 
@@ -116,7 +124,7 @@ class StepFlowPickHandler extends LitElement {
               ${this.hass.localize(
                 "ui.panel.config.integrations.note_about_website_reference"
               )}<a
-                href="https://www.home-assistant.io/integrations/"
+                href="${documentationUrl(this.hass, "/integrations/")}"
                 target="_blank"
                 rel="noreferrer"
                 >${this.hass.localize(
@@ -139,11 +147,18 @@ class StepFlowPickHandler extends LitElement {
 
   protected updated(changedProps) {
     super.updated(changedProps);
-    // Store the width so that when we search, box doesn't jump
+    // Store the width and height so that when we search, box doesn't jump
+    const div = this.shadowRoot!.querySelector("div")!;
     if (!this._width) {
-      const width = this.shadowRoot!.querySelector("div")!.clientWidth;
+      const width = div.clientWidth;
       if (width) {
         this._width = width;
+      }
+    }
+    if (!this._height) {
+      const height = div.clientHeight;
+      if (height) {
+        this._height = height;
       }
     }
   }
@@ -166,8 +181,8 @@ class StepFlowPickHandler extends LitElement {
       configFlowContentStyles,
       css`
         img {
-          max-width: 40px;
-          max-height: 40px;
+          width: 40px;
+          height: 40px;
         }
         search-input {
           display: block;
@@ -180,12 +195,12 @@ class StepFlowPickHandler extends LitElement {
           overflow: auto;
           max-height: 600px;
         }
-        @media all and (max-height: 1px) {
+        @media all and (max-height: 900px) {
           div {
-            max-height: calc(100vh - 205px);
+            max-height: calc(100vh - 134px);
           }
           div.advanced {
-            max-height: calc(100vh - 300px);
+            max-height: calc(100vh - 250px);
           }
         }
         paper-icon-item {

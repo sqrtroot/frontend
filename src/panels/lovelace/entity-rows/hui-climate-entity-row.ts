@@ -5,6 +5,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -17,13 +18,13 @@ import { EntityConfig, LovelaceRow } from "./types";
 
 @customElement("hui-climate-entity-row")
 class HuiClimateEntityRow extends LitElement implements LovelaceRow {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: EntityConfig;
+  @internalProperty() private _config?: EntityConfig;
 
   public setConfig(config: EntityConfig): void {
     if (!config || !config.entity) {
-      throw new Error("Invalid Configuration: 'entity' required");
+      throw new Error("Entity must be specified");
     }
 
     this._config = config;

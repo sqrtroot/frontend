@@ -20,7 +20,7 @@ export class HuiThemeSelectEditor extends LitElement {
 
   @property() public label?: string;
 
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
   protected render(): TemplateResult {
     return html`
@@ -58,6 +58,9 @@ export class HuiThemeSelectEditor extends LitElement {
     return css`
       paper-dropdown-menu {
         width: 100%;
+      }
+      paper-item {
+        cursor: pointer;
       }
     `;
   }

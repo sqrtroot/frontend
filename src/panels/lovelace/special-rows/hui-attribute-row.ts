@@ -5,6 +5,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -16,19 +17,19 @@ import { createEntityNotFoundWarning } from "../components/hui-warning";
 
 @customElement("hui-attribute-row")
 class HuiAttributeRow extends LitElement implements LovelaceRow {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: AttributeRowConfig;
+  @internalProperty() private _config?: AttributeRowConfig;
 
   public setConfig(config: AttributeRowConfig): void {
     if (!config) {
-      throw new Error("Configuration error");
+      throw new Error("Invalid configuration");
     }
     if (!config.entity) {
-      throw new Error("Entity not defined");
+      throw new Error("Entity not specified");
     }
     if (!config.attribute) {
-      throw new Error("Attribute not defined");
+      throw new Error("Attribute not specified");
     }
     this._config = config;
   }
@@ -56,7 +57,8 @@ class HuiAttributeRow extends LitElement implements LovelaceRow {
     return html`
       <hui-generic-entity-row .hass=${this.hass} .config=${this._config}>
         <div>
-          ${this._config.prefix} ${attribute || "-"} ${this._config.suffix}
+          ${this._config.prefix} ${attribute ?? "-"}
+          ${this._config.suffix}
         </div>
       </hui-generic-entity-row>
     `;

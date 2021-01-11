@@ -7,6 +7,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -20,9 +21,12 @@ import "../../../components/entity/state-badge";
 import "../../../components/ha-paper-dropdown-menu";
 import { UNAVAILABLE_STATES } from "../../../data/entity";
 import { forwardHaptic } from "../../../data/haptics";
-import { setInputSelectOption } from "../../../data/input_select";
+import {
+  InputSelectEntity,
+  setInputSelectOption,
+} from "../../../data/input_select";
 import { ActionHandlerEvent } from "../../../data/lovelace";
-import { HomeAssistant, InputSelectEntity } from "../../../types";
+import { HomeAssistant } from "../../../types";
 import { EntitiesCardEntityConfig } from "../cards/types";
 import { actionHandler } from "../common/directives/action-handler-directive";
 import { handleAction } from "../common/handle-action";
@@ -33,13 +37,13 @@ import { LovelaceRow } from "./types";
 
 @customElement("hui-input-select-entity-row")
 class HuiInputSelectEntityRow extends LitElement implements LovelaceRow {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: EntitiesCardEntityConfig;
+  @internalProperty() private _config?: EntitiesCardEntityConfig;
 
   public setConfig(config: EntitiesCardEntityConfig): void {
     if (!config || !config.entity) {
-      throw new Error("Invalid Configuration: 'entity' required");
+      throw new Error("Entity must be specified");
     }
 
     this._config = config;

@@ -6,6 +6,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   TemplateResult,
   PropertyValues,
 } from "lit-element";
@@ -21,17 +22,17 @@ import { CastConfig, LovelaceRow } from "../entity-rows/types";
 
 @customElement("hui-cast-row")
 class HuiCastRow extends LitElement implements LovelaceRow {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
-  @property() private _config?: CastConfig;
+  @internalProperty() private _config?: CastConfig;
 
-  @property() private _castManager?: CastManager | null;
+  @internalProperty() private _castManager?: CastManager | null;
 
-  @property() private _noHTTPS = false;
+  @internalProperty() private _noHTTPS = false;
 
   public setConfig(config: CastConfig): void {
     if (!config || config.view === undefined || config.view === null) {
-      throw new Error("Invalid Configuration: 'view' required");
+      throw new Error("View required");
     }
 
     this._config = {

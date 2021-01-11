@@ -11,12 +11,12 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   query,
   TemplateResult,
 } from "lit-element";
 import { fireEvent } from "../../../../common/dom/fire_event";
 import "../../../../components/ha-icon-input";
-import "../../../../components/ha-switch";
 import type { InputSelect } from "../../../../data/input_select";
 import { showConfirmationDialog } from "../../../../dialogs/generic/show-dialog-box";
 import { haStyle } from "../../../../resources/styles";
@@ -24,19 +24,19 @@ import type { HomeAssistant } from "../../../../types";
 
 @customElement("ha-input_select-form")
 class HaInputSelectForm extends LitElement {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property() public new?: boolean;
 
   private _item?: InputSelect;
 
-  @property() private _name!: string;
+  @internalProperty() private _name!: string;
 
-  @property() private _icon!: string;
+  @internalProperty() private _icon!: string;
 
-  @property() private _options: string[] = [];
+  @internalProperty() private _options: string[] = [];
 
-  @query("#option_input") private _optionInput?: PaperInputElement;
+  @query("#option_input", true) private _optionInput?: PaperInputElement;
 
   set item(item: InputSelect) {
     this._item = item;

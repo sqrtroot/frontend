@@ -5,6 +5,7 @@ import {
   html,
   LitElement,
   property,
+  internalProperty,
   PropertyValues,
   TemplateResult,
 } from "lit-element";
@@ -19,8 +20,9 @@ import {
   getWeatherUnit,
   getWeatherStateIcon,
   weatherSVGStyles,
+  WeatherEntity,
 } from "../../../data/weather";
-import type { HomeAssistant, WeatherEntity } from "../../../types";
+import type { HomeAssistant } from "../../../types";
 import type { EntitiesCardEntityConfig } from "../cards/types";
 import { hasConfigOrEntityChanged } from "../common/has-changed";
 import "../components/hui-generic-entity-row";
@@ -37,13 +39,13 @@ import { stateIcon } from "../../../common/entity/state_icon";
 
 @customElement("hui-weather-entity-row")
 class HuiWeatherEntityRow extends LitElement implements LovelaceRow {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
-  @property() private _config?: EntitiesCardEntityConfig;
+  @internalProperty() private _config?: EntitiesCardEntityConfig;
 
   public setConfig(config: EntitiesCardEntityConfig): void {
     if (!config?.entity) {
-      throw new Error("Invalid Configuration: 'entity' required");
+      throw new Error("Entity must be specified");
     }
 
     this._config = config;

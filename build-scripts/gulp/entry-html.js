@@ -19,6 +19,7 @@ const renderTemplate = (pth, data = {}, pathFunc = templatePath) => {
   return compiled({
     ...data,
     useRollup: env.useRollup(),
+    useWDS: env.useWDS(),
     renderTemplate,
   });
 };
@@ -90,12 +91,23 @@ gulp.task("gen-pages-prod", (done) => {
 });
 
 gulp.task("gen-index-app-dev", (done) => {
-  // In dev mode we don't mangle names, so we hardcode urls. That way we can
-  // run webpack as last in watch mode, which blocks output.
+  let latestAppJS, latestCoreJS, latestCustomPanelJS;
+
+  if (env.useWDS()) {
+    latestAppJS = "http://localhost:8000/src/entrypoints/app.ts";
+    latestCoreJS = "http://localhost:8000/src/entrypoints/core.ts";
+    latestCustomPanelJS =
+      "http://localhost:8000/src/entrypoints/custom-panel.ts";
+  } else {
+    latestAppJS = "/frontend_latest/app.js";
+    latestCoreJS = "/frontend_latest/core.js";
+    latestCustomPanelJS = "/frontend_latest/custom-panel.js";
+  }
+
   const content = renderTemplate("index", {
-    latestAppJS: "/frontend_latest/app.js",
-    latestCoreJS: "/frontend_latest/core.js",
-    latestCustomPanelJS: "/frontend_latest/custom-panel.js",
+    latestAppJS,
+    latestCoreJS,
+    latestCustomPanelJS,
 
     es5AppJS: "/frontend_es5/app.js",
     es5CoreJS: "/frontend_es5/core.js",
@@ -201,8 +213,6 @@ gulp.task("gen-index-cast-prod", (done) => {
 });
 
 gulp.task("gen-index-demo-dev", (done) => {
-  // In dev mode we don't mangle names, so we hardcode urls. That way we can
-  // run webpack as last in watch mode, which blocks output.
   const content = renderDemoTemplate("index", {
     latestDemoJS: "/frontend_latest/main.js",
 
@@ -240,8 +250,6 @@ gulp.task("gen-index-demo-prod", (done) => {
 });
 
 gulp.task("gen-index-gallery-dev", (done) => {
-  // In dev mode we don't mangle names, so we hardcode urls. That way we can
-  // run webpack as last in watch mode, which blocks output.
   const content = renderGalleryTemplate("index", {
     latestGalleryJS: "./frontend_latest/entrypoint.js",
   });
@@ -269,3 +277,42 @@ gulp.task("gen-index-gallery-prod", (done) => {
   );
   done();
 });
+
+gulp.task("gen-index-hassio-dev", async () => {
+  writeHassioEntrypoint(
+    `${paths.hassio_publicPath}/frontend_latest/entrypoint.js`,
+    `${paths.hassio_publicPath}/frontend_es5/entrypoint.js`
+  );
+});
+
+gulp.task("gen-index-hassio-prod", async () => {
+  const latestManifest = require(path.resolve(
+    paths.hassio_output_latest,
+    "manifest.json"
+  ));
+  const es5Manifest = require(path.resolve(
+    paths.hassio_output_es5,
+    "manifest.json"
+  ));
+  writeHassioEntrypoint(
+    latestManifest["entrypoint.js"],
+    es5Manifest["entrypoint.js"]
+  );
+});
+
+function writeHassioEntrypoint(latestEntrypoint, es5Entrypoint) {
+  fs.mkdirSync(paths.hassio_output_root, { recursive: true });
+  fs.writeFileSync(
+    path.resolve(paths.hassio_output_root, "entrypoint.js"),
+    `
+try {
+  new Function("import('${latestEntrypoint}')")();
+} catch (err) {
+  var el = document.createElement('script');
+  el.src = '${es5Entrypoint}';
+  document.body.appendChild(el);
+}
+  `,
+    { encoding: "utf-8" }
+  );
+}

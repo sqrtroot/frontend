@@ -12,12 +12,12 @@ import {
   computeDeviceName,
   DeviceRegistryEntry,
 } from "../../../../data/device_registry";
-import { loadDeviceRegistryDetailDialog } from "../../../../dialogs/device-registry-detail/show-dialog-device-registry-detail";
+import { loadDeviceRegistryDetailDialog } from "../device-registry-detail/show-dialog-device-registry-detail";
 import { HomeAssistant } from "../../../../types";
 
 @customElement("ha-device-info-card")
 export class HaDeviceCard extends LitElement {
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property() public device!: DeviceRegistryEntry;
 
@@ -75,6 +75,7 @@ export class HaDeviceCard extends LitElement {
             : ""}
           <slot></slot>
         </div>
+        <slot name="actions"></slot>
       </ha-card>
     `;
   }
@@ -100,7 +101,6 @@ export class HaDeviceCard extends LitElement {
       }
       ha-card {
         flex: 1 0 100%;
-        padding-bottom: 10px;
         min-width: 0;
       }
       .device {

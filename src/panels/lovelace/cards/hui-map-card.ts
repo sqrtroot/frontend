@@ -1,4 +1,3 @@
-import "../../../components/ha-icon-button";
 import { HassEntity } from "home-assistant-js-websocket";
 import {
   Circle,
@@ -8,6 +7,7 @@ import {
   Map,
   Marker,
   Polyline,
+  TileLayer,
 } from "leaflet";
 import {
   css,
@@ -21,8 +21,8 @@ import {
 } from "lit-element";
 import { classMap } from "lit-html/directives/class-map";
 import {
-  createTileLayer,
   LeafletModuleType,
+  replaceTileLayer,
   setupLeafletMap,
 } from "../../../common/dom/setup-leaflet-map";
 import { computeDomain } from "../../../common/entity/compute_domain";
@@ -30,23 +30,22 @@ import { computeStateDomain } from "../../../common/entity/compute_state_domain"
 import { computeStateName } from "../../../common/entity/compute_state_name";
 import { debounce } from "../../../common/util/debounce";
 import parseAspectRatio from "../../../common/util/parse-aspect-ratio";
+import "../../../components/ha-card";
+import "../../../components/ha-icon-button";
 import { fetchRecent } from "../../../data/history";
 import { HomeAssistant } from "../../../types";
 import "../../map/ha-entity-marker";
 import { findEntities } from "../common/find-entites";
+import { installResizeObserver } from "../common/install-resize-observer";
 import { processConfigEntities } from "../common/process-config-entities";
 import { EntityConfig } from "../entity-rows/types";
 import { LovelaceCard } from "../types";
-import "../../../components/ha-card";
 import { MapCardConfig } from "./types";
-import { installResizeObserver } from "../common/install-resize-observer";
 
 @customElement("hui-map-card")
 class HuiMapCard extends LitElement implements LovelaceCard {
   public static async getConfigElement() {
-    await import(
-      /* webpackChunkName: "hui-map-card-editor" */ "../editor/config-elements/hui-map-card-editor"
-    );
+    await import("../editor/config-elements/hui-map-card-editor");
     return document.createElement("hui-map-card-editor");
   }
 
@@ -68,7 +67,7 @@ class HuiMapCard extends LitElement implements LovelaceCard {
     return { type: "map", entities: foundEntities };
   }
 
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
   @property({ type: Boolean, reflect: true })
   public isPanel = false;
@@ -91,6 +90,8 @@ class HuiMapCard extends LitElement implements LovelaceCard {
 
   private _leafletMap?: Map;
 
+  private _tileLayer?: TileLayer;
+
   private _resizeObserver?: ResizeObserver;
 
   private _debouncedResizeListener = debounce(
@@ -110,7 +111,7 @@ class HuiMapCard extends LitElement implements LovelaceCard {
 
   private _mapPaths: Array<Polyline | CircleMarker> = [];
 
-  private _colorDict: { [key: string]: string } = {};
+  private _colorDict: Record<string, string> = {};
 
   private _colorIndex = 0;
 
@@ -134,9 +135,9 @@ class HuiMapCard extends LitElement implements LovelaceCard {
       throw new Error("Error in card configuration.");
     }
 
-    if (!config.entities && !config.geo_location_sources) {
+    if (!config.entities?.length && !config.geo_location_sources) {
       throw new Error(
-        "Either entities or geo_location_sources must be defined"
+        "Either entities or geo_location_sources must be specified"
       );
     }
     if (config.entities && !Array.isArray(config.entities)) {
@@ -159,7 +160,7 @@ class HuiMapCard extends LitElement implements LovelaceCard {
 
   public getCardSize(): number {
     if (!this._config?.aspect_ratio) {
-      return 5;
+      return 7;
     }
 
     const ratio = parseAspectRatio(this._config.aspect_ratio);
@@ -225,6 +226,10 @@ class HuiMapCard extends LitElement implements LovelaceCard {
       return true;
     }
 
+    if (oldHass.themes.darkMode !== this.hass.themes.darkMode) {
+      return true;
+    }
+
     // Check if any state has changed
     for (const entity of this._configEntities) {
       if (oldHass.states[entity.entity] !== this.hass!.states[entity.entity]) {
@@ -266,6 +271,12 @@ class HuiMapCard extends LitElement implements LovelaceCard {
       this._drawEntities();
       this._fitMap();
     }
+    if (changedProps.has("hass")) {
+      const oldHass = changedProps.get("hass") as HomeAssistant | undefined;
+      if (oldHass && oldHass.themes.darkMode !== this.hass.themes.darkMode) {
+        this._replaceTileLayer();
+      }
+    }
     if (
       changedProps.has("_config") &&
       changedProps.get("_config") !== undefined
@@ -288,24 +299,39 @@ class HuiMapCard extends LitElement implements LovelaceCard {
   }
 
   private async loadMap(): Promise<void> {
-    [this._leafletMap, this.Leaflet] = await setupLeafletMap(
+    [this._leafletMap, this.Leaflet, this._tileLayer] = await setupLeafletMap(
       this._mapEl,
-      this._config !== undefined ? this._config.dark_mode === true : false
+      this._config!.dark_mode ?? this.hass.themes.darkMode
     );
     this._drawEntities();
     this._leafletMap.invalidateSize();
     this._fitMap();
   }
 
+  private _replaceTileLayer() {
+    const map = this._leafletMap;
+    const config = this._config;
+    const Leaflet = this.Leaflet;
+    if (!map || !config || !Leaflet || !this._tileLayer) {
+      return;
+    }
+    this._tileLayer = replaceTileLayer(
+      Leaflet,
+      map,
+      this._tileLayer,
+      this._config!.dark_mode ?? this.hass.themes.darkMode
+    );
+  }
+
   private updateMap(oldConfig: MapCardConfig): void {
     const map = this._leafletMap;
     const config = this._config;
     const Leaflet = this.Leaflet;
-    if (!map || !config || !Leaflet) {
+    if (!map || !config || !Leaflet || !this._tileLayer) {
       return;
     }
-    if (config.dark_mode !== oldConfig.dark_mode) {
-      createTileLayer(Leaflet, config.dark_mode === true).addTo(map);
+    if (this._config!.dark_mode !== oldConfig.dark_mode) {
+      this._replaceTileLayer();
     }
     if (
       config.entities !== oldConfig.entities ||
@@ -493,7 +519,11 @@ class HuiMapCard extends LitElement implements LovelaceCard {
             icon: Leaflet.divIcon({
               html: iconHTML,
               iconSize: [24, 24],
-              className: this._config!.dark_mode === true ? "dark" : "light",
+              className: this._config!.dark_mode
+                ? "dark"
+                : this._config!.dark_mode === false
+                ? "light"
+                : "",
             }),
             interactive: false,
             title,
@@ -628,17 +658,14 @@ class HuiMapCard extends LitElement implements LovelaceCard {
 
   static get styles(): CSSResult {
     return css`
-      :host([ispanel]) ha-card {
-        width: 100%;
-        height: 100%;
-      }
-
       :host([ispanel][editMode]) ha-card {
         height: calc(100% - 51px);
       }
 
       ha-card {
         overflow: hidden;
+        width: 100%;
+        height: 100%;
       }
 
       #map {
@@ -649,11 +676,7 @@ class HuiMapCard extends LitElement implements LovelaceCard {
         left: 0;
         width: 100%;
         height: 100%;
-        background: #fafaf8;
-      }
-
-      #map.dark {
-        background: #090909;
+        background: inherit;
       }
 
       ha-icon-button {

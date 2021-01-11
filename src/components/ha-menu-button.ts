@@ -1,9 +1,12 @@
+import "@material/mwc-icon-button";
+import { mdiMenu } from "@mdi/js";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
 import {
   css,
   CSSResult,
   customElement,
   html,
+  internalProperty,
   LitElement,
   property,
   TemplateResult,
@@ -12,8 +15,7 @@ import { fireEvent } from "../common/dom/fire_event";
 import { computeDomain } from "../common/entity/compute_domain";
 import { subscribeNotifications } from "../data/persistent_notification";
 import { HomeAssistant } from "../types";
-import "./ha-icon-button";
-import { mdiMenu } from "@mdi/js";
+import "./ha-svg-icon";
 
 @customElement("ha-menu-button")
 class HaMenuButton extends LitElement {
@@ -21,9 +23,9 @@ class HaMenuButton extends LitElement {
 
   @property() public narrow!: boolean;
 
-  @property() public hass!: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
 
-  @property() private _hasNotifications = false;
+  @internalProperty() private _hasNotifications = false;
 
   private _alwaysVisible = false;
 
@@ -60,7 +62,7 @@ class HaMenuButton extends LitElement {
         aria-label=${this.hass.localize("ui.sidebar.sidebar_toggle")}
         @click=${this._toggleMenu}
       >
-        <ha-svg-icon path=${mdiMenu}></ha-svg-icon>
+        <ha-svg-icon .path=${mdiMenu}></ha-svg-icon>
       </mwc-icon-button>
       ${hasNotifications ? html` <div class="dot"></div> ` : ""}
     `;
@@ -96,8 +98,7 @@ class HaMenuButton extends LitElement {
       return;
     }
 
-    this.style.visibility =
-      newNarrow || this._alwaysVisible ? "initial" : "hidden";
+    this.style.display = newNarrow || this._alwaysVisible ? "initial" : "none";
 
     if (!newNarrow) {
       this._hasNotifications = false;

@@ -8,6 +8,7 @@ export interface DeviceRegistryEntry {
   id: string;
   config_entries: string[];
   connections: Array<[string, string]>;
+  identifiers: Array<[string, string]>;
   manufacturer: string;
   model?: string;
   name?: string;
@@ -16,6 +17,7 @@ export interface DeviceRegistryEntry {
   area_id?: string;
   name_by_user?: string;
   entry_type: "service" | null;
+  disabled_by: string | null;
 }
 
 export interface DeviceEntityLookup {
@@ -25,6 +27,7 @@ export interface DeviceEntityLookup {
 export interface DeviceRegistryEntryMutableParams {
   area_id?: string | null;
   name_by_user?: string | null;
+  disabled_by?: string | null;
 }
 
 export const fallbackDeviceName = (

@@ -6,17 +6,22 @@ import { createCardElement } from "../create-element/create-card-element";
 import { EntityFilterEntityConfig } from "../entity-rows/types";
 import { LovelaceCard } from "../types";
 import { EntityFilterCardConfig } from "./types";
-import { property, PropertyValues, UpdatingElement } from "lit-element";
+import {
+  property,
+  internalProperty,
+  PropertyValues,
+  UpdatingElement,
+} from "lit-element";
 import { computeCardSize } from "../common/compute-card-size";
 
 class EntityFilterCard extends UpdatingElement implements LovelaceCard {
-  @property() public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass?: HomeAssistant;
 
   @property() public isPanel = false;
 
   @property() public editMode = false;
 
-  @property() private _config?: EntityFilterCardConfig;
+  @internalProperty() private _config?: EntityFilterCardConfig;
 
   private _element?: LovelaceCard;
 
@@ -31,8 +36,8 @@ class EntityFilterCard extends UpdatingElement implements LovelaceCard {
   }
 
   public setConfig(config: EntityFilterCardConfig): void {
-    if (!config.entities || !Array.isArray(config.entities)) {
-      throw new Error("entities must be specified.");
+    if (!config.entities.length || !Array.isArray(config.entities)) {
+      throw new Error("Entities must be specified");
     }
 
     if (
@@ -44,7 +49,7 @@ class EntityFilterCard extends UpdatingElement implements LovelaceCard {
           Array.isArray(entity.state_filter)
       )
     ) {
-      throw new Error("Incorrect filter config.");
+      throw new Error("Incorrect filter config");
     }
 
     this._configEntities = processConfigEntities(config.entities);
